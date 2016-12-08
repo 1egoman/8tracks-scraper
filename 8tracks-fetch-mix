@@ -1,7 +1,27 @@
 #!/usr/bin/env node
 /* vim: set syntax=javascript ft=javascript : */
 const Promise = require('bluebird'),
-      request = require('request-promise');
+      request = require('request-promise'),
+      mm = require('musicmetadata'),
+
+function getLengthOfTrack({track_file_stream_url}) {
+  let stream = request({method: 'GET', url: track_file_stream_url, resolveWithFullResponse: true});
+  return stream.then(resp => {
+    return new Promise((resolve, reject) => {
+      console.log(123)
+      mm(stream, {duration: true, fileSize: resp.headers['content-length']}, (err, metadata) => {
+        console.log(err, metadata)
+        if (err) {
+          reject(err);
+        } else {
+          response.close();
+          resolve(metadata.duration);
+        }
+      });
+    });
+  });
+}
+
 
 // Given a mix and set, initiate "playing" the mix.
 function playMix(mixId, setId) {
