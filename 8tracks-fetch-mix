@@ -1,0 +1,92 @@
+#!/usr/bin/env node
+/* vim: set syntax=javascript ft=javascript : */
+const Promise = require('bluebird'),
+      request = require('request-promise');
+
+// Given a mix and set, initiate "playing" the mix.
+function playMix(mixId, setId) {
+  return request({
+    method: 'GET',
+    url: `http://8tracks.com/sets/${setId}/play`,
+    qs: {
+      player: 'sm',
+      include: 'track[faved+annotation+artist_details]',
+      mix_id: mixId,
+      format: 'jsonh',
+    },
+  });
+}
+
+// Given a mix and set, fetch the given track (the next one in the sequence) from the playlist.
+function fetchTrack(mixId, setId, trackId) {
+  return request({
+    method: 'GET',
+    url: `http://8tracks.com/sets/${setId}/next`,
+    qs: {
+      player: 'sm',
+      include: 'track[faved+annotation+artist_details]',
+      mix_id: mixId,
+      track_id: trackId,
+      format: 'jsonh',
+    },
+  }).then(a => JSON.parse(a));
+}
+
+// Given a mix is and set id, traverse through a mix one track at a time and "crawl" a mix.
+// Returns an array of tracks that are returned from 8tracks
+function getTracksInMix(mixId, setId) {
+  // A recursive function used to traverse through a mix
+  function walkThroughMix(lastTrackId) {
+    // Fetch the current song in the mix.
+    return fetchTrack(mixId, setId, lastTrackId).then(track => {
+      // Log the song
+      let currentSong = track.set.track;
+      mixContents.push(currentSong);
+      console.log(">", currentSong.name, currentSong.track_file_stream_url);
+
+      if (track.set.at_last_track) {
+        // At end!
+        return true;
+      } else {
+        // fetch next track
+        return walkThroughMix(track.set.track.id);
+      }
+    });
+  }
+
+  let mixContents = [];
+
+  // Start by playing the mix. That responds with the first track in the mix.
+  return playMix(mixId, setId).then(resp => {
+    let mix = JSON.parse(resp);
+
+    // log the first song.
+    let currentSong = mix.set.track;
+    mixContents.push(currentSong);
+    console.log(">", currentSong.name, currentSong.track_file_stream_url);
+
+    return walkThroughMix(mix.set.id);
+  }).then(() => {
+    // return mixContents;
+  });
+}
+module.exports = getTracksInMix;
+
+// Use this script interactively:
+if (require.main === module) {
+  const argv = require('minimist')(process.argv.slice(2));
+  const mix = argv.mix || argv.m;
+
+  // Use the specified set id, or generate a random set id from 100k-400k
+  let set = argv.set || argv.s || (Math.floor(Math.random() * 300000) + 100000).toString();
+
+  if (!mix) {
+    console.error(`Usage: ./8tracks-fetch-mix --mix "mix id" [--set "set id"]`);
+    console.error(`Error: please specify a mix id to fetch with --mix (it's a required argument)`);
+    process.exit(1);
+  }
+
+  getTracksInMix(mix, set)
+  .then(tracks => console.log(tracks))
+  .catch(err => console.error(err));
+}
