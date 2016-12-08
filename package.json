@@ -12,7 +12,6 @@
   "dependencies": {
     "bluebird": "^3.4.6",
     "minimist": "^1.2.0",
-    "musicmetadata": "^2.0.5",
     "request": "^2.79.0",
     "request-promise": "^4.1.1"
   }

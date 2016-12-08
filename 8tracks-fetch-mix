@@ -2,7 +2,6 @@
 /* vim: set syntax=javascript ft=javascript : */
 const Promise = require('bluebird'),
       request = require('request-promise'),
-      mm = require('musicmetadata'),
       fs = require('fs');
 
 function generateSetId() {
