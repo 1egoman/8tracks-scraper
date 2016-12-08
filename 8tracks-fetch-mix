@@ -66,7 +66,7 @@ function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
       // Log the song
       let currentSong = track.set.track;
       mixContents.push(currentSong);
-      console.log(">", index, currentSong.name, currentSong.track_file_stream_url);
+      console.log(">", index, currentSong.name, currentSong.track_file_stream_url, currentSong);
 
       if (track.set.at_last_track) {
         // At end!
@@ -97,7 +97,7 @@ function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
     // log the first song.
     let currentSong = mix.set.track;
     mixContents.push(currentSong);
-    console.log(">", 1, currentSong.name, currentSong.track_file_stream_url);
+    console.log(">", 1, currentSong.name, currentSong.track_file_stream_url, currentSong);
 
     // Start at the 2nd song, since we just fetched the 1st
     return walkThroughMix(mix.set.id, 2);
@@ -105,7 +105,14 @@ function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
     return mixContents;
   });
 }
-module.exports = getTracksInMix;
+module.exports = {
+  getTracksInMix,
+  fetchTrack,
+  playMix,
+  convertMixUrlToMixId,
+  getLengthOfTrack,
+  generateSetId,
+};
 
 // Use this script interactively:
 if (require.main === module) {
