@@ -117,7 +117,7 @@ if (require.main === module) {
   let set = argv.set || argv.s || generateSetId();
 
   if (!mix) {
-    console.error(`Usage: ./8tracks-fetch-mix --mix "mix id" [--set "set id"] [--output "filename"]`);
+    console.error(`Usage: ./8tracks-fetch-mix --mix "mix" [--set "set id"] [--output "filename"]`);
     console.error(`--mix specifies the mix url (or raw mix id) to fetch from 8tracks`);
     console.error(`--set specifies the set id use when feching. If not specified, a random set id is used`);
     console.error(`--delay specifies whether to wait the length of each track after the track is
