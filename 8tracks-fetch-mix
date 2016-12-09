@@ -4,6 +4,17 @@ const Promise = require('bluebird'),
       request = require('request-promise'),
       fs = require('fs');
 
+let index = 0;
+function logTrack(currentSong) {
+  console.log([
+    ++index, // Index
+    currentSong.name, // Name
+    currentSong.performer, // Artist
+    "null", // Album art
+    currentSong.track_file_stream_url, // Music url
+  ].join('|'));
+}
+
 function generateSetId() {
   return (Math.floor(Math.random() * 300000) + 100000).toString();
 }
@@ -60,13 +71,13 @@ function fetchTrack(mixId, setId, trackId) {
 // Returns an array of tracks that are returned from 8tracks
 function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
   // A recursive function used to traverse through a mix
-  function walkThroughMix(lastTrackId, index=0) {
+  function walkThroughMix(lastTrackId) {
     // Fetch the current song in the mix.
     return fetchTrack(mixId, setId, lastTrackId).then(track => {
       // Log the song
       let currentSong = track.set.track;
       mixContents.push(currentSong);
-      console.log(">", index, currentSong.name, currentSong.track_file_stream_url, currentSong);
+      logTrack(currentSong);
 
       if (track.set.at_last_track) {
         // At end!
@@ -76,11 +87,11 @@ function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
         if (delayLengthOfTrack) {
           // Calculate the length of the track
           return getLengthOfTrack(currentSong).then(lengthInSeconds => {
-            console.log('* Approximate Track length:', lengthInSeconds, 'seconds');
-            console.log('* Waiting as if playing...');
+            // console.log('* Approximate Track length:', lengthInSeconds, 'seconds');
+            // console.log('* Waiting as if playing...');
             return Promise.delay(lengthInSeconds * 1000);
           }).then(() => {
-            return walkThroughMix(track.set.track.id, ++index);
+            return walkThroughMix(track.set.track.id);
           });
         } else {
           // User doesn't want to delay!
@@ -97,7 +108,7 @@ function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
     // log the first song.
     let currentSong = mix.set.track;
     mixContents.push(currentSong);
-    console.log(">", 1, currentSong.name, currentSong.track_file_stream_url, currentSong);
+    logTrack(currentSong);
 
     // Start at the 2nd song, since we just fetched the 1st
     return walkThroughMix(mix.set.id, 2);
@@ -139,7 +150,7 @@ if (require.main === module) {
   let promise;
   if (isNaN(parseInt(mix))) {
     promise = convertMixUrlToMixId(mix).then(mixId => {
-      console.log('* Got mix id for mix url:', mixId);
+      // console.log('* Got mix id for mix url:', mixId);
       mix = mixId;
     });
   } else {
