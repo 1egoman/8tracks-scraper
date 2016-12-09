@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "bluebird": "^3.4.6",
+    "escape-html": "^1.0.3",
     "flat": "^2.0.1",
     "minimist": "^1.2.0",
     "parse-headers": "^2.0.1",
