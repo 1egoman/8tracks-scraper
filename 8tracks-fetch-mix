@@ -2,17 +2,27 @@
 /* vim: set syntax=javascript ft=javascript : */
 const Promise = require('bluebird'),
       request = require('request-promise'),
+      flatten = require('flat'),
       fs = require('fs');
 
 let index = 0;
 function logTrack(currentSong) {
-  console.log([
-    ++index, // Index
-    currentSong.name, // Name
-    currentSong.performer, // Artist
-    "null", // Album art
-    currentSong.track_file_stream_url, // Music url
-  ].join('|'));
+  // A seperator:
+  console.log('%%');
+
+  let flattened = flatten({
+    is: 'track',
+    index: ++index,
+    name: currentSong.name,
+    artist: currentSong.performer,
+    artist_bio: currentSong.artist_details.bio_intro,
+    url: currentSong.url,
+    source: currentSong.track_file_stream_url,
+  });
+
+  for (let key in flattened) {
+    console.log(`${key}: ${flattened[key]}`);
+  }
 }
 
 function generateSetId() {

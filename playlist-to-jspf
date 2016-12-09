@@ -1,0 +1,37 @@
+#!/usr/bin/env node
+/* vim: set syntax=javascript ft=javascript : */
+const parseHeaders = require('parse-headers');
+const unflatten = require('flat').unflatten;
+
+let data = "";
+process.stdin.on('data', packet => {
+  data += packet.toString();
+});
+
+process.stdin.on('end', () => {
+  // Parse the playlist format, and remove any empty newlines
+  let tracks = data.split('%%\n').filter(i => i.trim().length);
+
+  // Extract the pertenant fields from the track
+  let children = tracks.map(trackString => {
+
+    // Parse the track key/value line by line
+    let track = unflatten(parseHeaders(trackString));
+
+    return {
+      title: track.name,
+      creator: track.artist,
+      trackNum: parseInt(track.index),
+      location: [track.source],
+    };
+  });
+
+  let playlist = {
+    playlist: {
+      title: "Foo Bar Baz",
+      track: children,
+    },
+  };
+
+  console.log(JSON.stringify(playlist, null, 2));
+});
