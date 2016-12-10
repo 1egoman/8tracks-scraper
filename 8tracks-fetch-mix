@@ -105,7 +105,7 @@ function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
           });
         } else {
           // User doesn't want to delay!
-          return walkThroughMix(track.set.track.id, ++index);
+          return walkThroughMix(track.set.track.id);
         }
       }
     });
