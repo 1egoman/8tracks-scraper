@@ -15,7 +15,7 @@ function logTrack(currentSong) {
     index: ++index,
     name: currentSong.name,
     artist: currentSong.performer,
-    artist_bio: currentSong.artist_details.bio_intro,
+    artist_bio: currentSong.artist_details ? currentSong.artist_details.bio_intro : "",
     url: currentSong.url,
     source: currentSong.track_file_stream_url,
   });
