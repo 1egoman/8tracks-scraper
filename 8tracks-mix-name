@@ -1,0 +1,26 @@
+#!/usr/bin/env node
+/* vim: set syntax=javascript ft=javascript : */
+const Promise = require('bluebird'),
+      request = require('request-promise'),
+      fs = require('fs');
+
+// Given a mix id, get the title for the mix.
+function getTitleForMix(data) {
+  let url = data;
+  if (!isNaN(parseInt(data))) {
+    url = `https://8tracks.com/mixes/${data}`;
+  }
+  console.log(url);
+
+  return request({method: 'GET', url}).then(body => {
+    let match = body.match(/<meta property="og:title" content="(.+)"/);
+    if (match && match.length >= 2) {
+      return match[1];
+    } else {
+      throw new Error(`Cannot get title from mix id. The proper meta tag wasn't in the head?`);
+    }
+  });
+}
+
+
+getTitleForMix(process.argv[2]).then(console.log).catch(console.error);
