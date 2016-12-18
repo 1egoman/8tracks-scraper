@@ -1,5 +1,5 @@
 # 8tracks-scraper
-Scrape an 8tracks mix to plaintext and an rss feed
+Scrape an 8tracks mix to plaintext, an rss feed, or a xspf/jspf playlist.
 
 # TL,DR
 ```bash
