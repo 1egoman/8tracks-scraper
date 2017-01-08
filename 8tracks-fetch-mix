@@ -39,12 +39,39 @@ function getLengthOfTrack({track_file_stream_url}) {
 // Given a mix url, resolve the corresponding mix id
 function convertMixUrlToMixId(url) {
   return request({method: 'GET', url}).then(body => {
-    let match = body.match(/eighttracks:\/\/mix\/([0-9]+)/);
-    if (match && match.length >= 2) {
-      return match[1];
+    // Throw an error if the id is missing.
+    let id = body.match(/eighttracks:\/\/mix\/([0-9]+)/);
+    if (id && id.length >= 2) {
+      id = id[1];
     } else {
       throw new Error(`Cannot get 8tracks mix id from url - the mix wasn't on the page!`);
+    };
+
+    // Extract the name
+    let name = body.match(/"og:title"[ ]+content="(.+)"/); // the playlist name
+    if (name && name.length >= 2) {
+      name = name[1];
     }
+
+    // Extract the description
+    let desc = body.match(/"og:description"[ ]+content="([^"]+)"/); // the playlist name
+    if (desc && desc.length >= 2) {
+      desc = Buffer.from(desc[1]).toString('base64');
+    }
+
+    // Extract the description
+    // let tags = [];
+    // let tag;
+    // while (tag = body.match(/(<a class="tag" title="([^"]+)"|<a title="([^"]+)" class="tag")/g)) {
+    //   tags.push(tag);
+    // }
+    // if (tags && tags.length >= 2) {
+    //   tags = tags.slice(1).map(match => match[2] || match[1]);
+    //   console.log(tags)
+    //   process.exit(0);
+    // }
+
+    return {id, name, desc};
   });
 }
 
@@ -159,9 +186,14 @@ if (require.main === module) {
   // convert mix url to mix id?
   let promise;
   if (isNaN(parseInt(mix))) {
-    promise = convertMixUrlToMixId(mix).then(mixId => {
+    promise = convertMixUrlToMixId(mix).then(data => {
       // console.log('* Got mix id for mix url:', mixId);
-      mix = mixId;
+      console.log('%%TRACKINFO');
+      console.log(`name: ${data.name}`);
+      console.log(`description: ${data.desc.toString('base64')}`);
+      // console.log(`Tags: ${data.tags.join(', ')}`);
+
+      mix = data.id;
     });
   } else {
     promise = Promise.resolve();

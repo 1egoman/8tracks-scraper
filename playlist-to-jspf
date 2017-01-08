@@ -10,7 +10,10 @@ process.stdin.on('data', packet => {
 
 process.stdin.on('end', () => {
   // Parse the playlist format, and remove any empty newlines
-  let tracks = data.split('%%\n').filter(i => i.trim().length);
+  let [playlistInfo, ...tracks] = data.split('%%\n').filter(i => i.trim().length);
+
+  // Parse the playlist info
+  let playlist = unflatten(parseHeaders(playlistInfo));
 
   // Extract the pertenant fields from the track
   let children = tracks.map(trackString => {
@@ -25,12 +28,13 @@ process.stdin.on('end', () => {
     };
   });
 
-  let playlist = {
+  let total = {
     playlist: {
-      title: "Foo Bar Baz",
+      title: playlist.name,
+      annotation: Buffer.from(playlist.description, 'base64').toString(),
       track: children,
     },
   };
 
-  console.log(JSON.stringify(playlist, null, 2));
+  console.log(JSON.stringify(total, null, 2));
 });

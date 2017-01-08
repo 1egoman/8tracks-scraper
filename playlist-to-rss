@@ -11,7 +11,10 @@ process.stdin.on('data', packet => {
 
 process.stdin.on('end', () => {
   // Parse the playlist format, and remove any empty newlines
-  let tracks = data.split('%%\n').filter(i => i.trim().length);
+  let [playlistInfo, ...tracks] = data.split('%%\n').filter(i => i.trim().length);
+
+  // Parse the playlist info
+  let playlist = unflatten(parseHeaders(playlistInfo));
 
   // Extract the pertenant fields from the track
   let children = tracks.map(trackString => {
@@ -26,7 +29,8 @@ process.stdin.on('end', () => {
   }).join('\n');
 
   console.log('<rss version="2.0">');
-  console.log(  `<title>8Tracks playlist</title>`);
+  console.log(  `<title>${playlist.title}</title>`);
+  console.log(  `<description>${Buffer.from(playlist.description, 'base64')}</description>`);
   console.log(  `<link>https://8tracks.com</link>`);
   console.log(  children);
   console.log('</rss>');
