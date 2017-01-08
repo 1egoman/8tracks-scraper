@@ -59,19 +59,19 @@ function convertMixUrlToMixId(url) {
       desc = Buffer.from(desc[1]).toString('base64');
     }
 
-    // Extract the description
-    // let tags = [];
-    // let tag;
-    // while (tag = body.match(/(<a class="tag" title="([^"]+)"|<a title="([^"]+)" class="tag")/g)) {
-    //   tags.push(tag);
-    // }
-    // if (tags && tags.length >= 2) {
-    //   tags = tags.slice(1).map(match => match[2] || match[1]);
-    //   console.log(tags)
-    //   process.exit(0);
-    // }
+    // Extract the tags
+    // First, get the container that has all the tags in it. Then, loop through and pull out all the
+    // tags from the container body and stick them into an array.
+    let contents = body.match(/<div id="mix_tags_display" itemprop="keywords">([^]+)<\/div>/), tags;
+    if (contents && contents.length >= 2) {
+      tags = contents[1].match(/<a[^>]+ href=\"\/explore[^>]+>([^<]+)<\/a>/g).map(match => {
+        return match.match(/<a[^>]+>([^<]+)<\/a>/)[1].trim();
+      });
+    } else {
+      tags = [];
+    }
 
-    return {id, name, desc};
+    return {id, name, desc, tags, link: url};
   });
 }
 
@@ -191,6 +191,8 @@ if (require.main === module) {
       console.log('%%TRACKINFO');
       console.log(`name: ${data.name}`);
       console.log(`description: ${data.desc.toString('base64')}`);
+      console.log(`link: ${data.link}`);
+      console.log(`tags: ${data.tags.join(',')}`);
       // console.log(`Tags: ${data.tags.join(', ')}`);
 
       mix = data.id;
