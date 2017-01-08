@@ -31,7 +31,7 @@ process.stdin.on('end', () => {
   console.log('<rss version="2.0">');
   console.log(  `<title>${playlist.title}</title>`);
   console.log(  `<description>${Buffer.from(playlist.description, 'base64')}</description>`);
-  console.log(  `<link>https://8tracks.com</link>`);
+  console.log(  `<link>${playlist.link}</link>`);
   console.log(  children);
   console.log('</rss>');
 });

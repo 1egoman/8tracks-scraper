@@ -32,6 +32,7 @@ process.stdin.on('end', () => {
     playlist: {
       title: playlist.name,
       annotation: Buffer.from(playlist.description, 'base64').toString(),
+      info: playlist.link,
       track: children,
     },
   };
