@@ -2,7 +2,7 @@
 /* vim: set syntax=javascript ft=javascript : */
 const Promise = require('bluebird'),
       request = require('request-promise'),
-      fs = require('fs');
+      eightTracksFetchMix = require('./8tracks-fetch-mix');
 
 // Given a mix id, get the title for the mix.
 function getTitleForMix(data) {
@@ -10,17 +10,18 @@ function getTitleForMix(data) {
   if (!isNaN(parseInt(data))) {
     url = `https://8tracks.com/mixes/${data}`;
   }
-  console.log(url);
 
-  return request({method: 'GET', url}).then(body => {
-    let match = body.match(/<meta property="og:title" content="(.+)"/);
-    if (match && match.length >= 2) {
-      return match[1];
-    } else {
-      throw new Error(`Cannot get title from mix id. The proper meta tag wasn't in the head?`);
+  // Prefix urls with http if they aren't already prefixed
+  if (!url.startsWith('http')) {
+    url = `http://${url}`;
+  }
+
+  return eightTracksFetchMix.convertMixUrlToMixId(url).then(body => {
+    for (let key in body) {
+      console.log(`${key}: ${body[key]}`);
     }
   });
 }
 
 
-getTitleForMix(process.argv[2]).then(console.log).catch(console.error);
+getTitleForMix(process.argv[2]).catch(console.error);

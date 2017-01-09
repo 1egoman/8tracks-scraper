@@ -15,7 +15,7 @@ function logTrack(currentSong) {
     index: ++index,
     name: currentSong.name,
     artist: currentSong.performer,
-    artist_bio: currentSong.artist_details ? currentSong.artist_details.bio_intro : "",
+    artist_bio: currentSong.artist_details ? Buffer.from(currentSong.artist_details.bio_intro).toString('base64') : "",
     url: currentSong.url,
     source: currentSong.track_file_stream_url,
   });
@@ -195,6 +195,7 @@ if (require.main === module) {
     promise = convertMixUrlToMixId(mix).then(data => {
       // console.log('* Got mix id for mix url:', mixId);
       console.log('%%TRACKINFO');
+      console.log(`is: playlist`);
       console.log(`name: ${data.name}`);
       console.log(`description: ${data.desc.toString('base64')}`);
       console.log(`link: ${data.link}`);
