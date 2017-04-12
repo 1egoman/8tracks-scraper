@@ -3,7 +3,12 @@
 const Promise = require('bluebird'),
       request = require('request-promise'),
       flatten = require('flat'),
+      {EventEmitter} = require('events'),
       fs = require('fs');
+
+function generateRandomSetId() {
+  return (Math.floor(Math.random() * 300000) + 100000).toString();
+}
 
 let index = 0;
 function logTrack(currentSong) {
@@ -14,6 +19,7 @@ function logTrack(currentSong) {
     is: 'track',
     index: ++index,
     name: currentSong.name,
+    album: currentSong.release_name,
     artist: currentSong.performer,
     artist_bio: currentSong.artist_details ? Buffer.from(currentSong.artist_details.bio_intro).toString('base64') : "",
     url: currentSong.url,
@@ -25,14 +31,16 @@ function logTrack(currentSong) {
   }
 }
 
-function generateSetId() {
-  return (Math.floor(Math.random() * 300000) + 100000).toString();
-}
 
+
+
+// Given a track, estimate about how long the track will be in seconds.
+// The
+const SECONDS_PER_BYTE = 2/10000; // 2 ten-thousandths of a second per byte "roughly".
 function getLengthOfTrack({track_file_stream_url}) {
   return request({method: 'HEAD', url: track_file_stream_url, resolveWithFullResponse: true})
   .then(resp => {
-    return resp.headers['content-length'] * 0.0002;
+    return resp.headers['content-length'] * SECONDS_PER_BYTE;
   });
 }
 
@@ -113,6 +121,8 @@ function fetchTrack(mixId, setId, trackId) {
 // Given a mix is and set id, traverse through a mix one track at a time and "crawl" a mix.
 // Returns an array of tracks that are returned from 8tracks
 function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
+  const emitter = new EventEmitter();
+
   // A recursive function used to traverse through a mix
   function walkThroughMix(lastTrackId) {
     // Fetch the current song in the mix.
@@ -120,7 +130,7 @@ function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
       // Log the song
       let currentSong = track.set.track;
       mixContents.push(currentSong);
-      logTrack(currentSong);
+      emitter.emit('track', currentSong);
 
       if (track.set.at_last_track) {
         // At end!
@@ -147,74 +157,27 @@ function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
   let mixContents = [];
 
   // Start by playing the mix. That responds with the first track in the mix.
-  return playMix(mixId, setId).then(mix => {
+  const complete = playMix(mixId, setId).then(mix => {
     // log the first song.
     let currentSong = mix.set.track;
     mixContents.push(currentSong);
-    logTrack(currentSong);
+    emitter.emit('track', currentSong);
 
     // Start at the 2nd song, since we just fetched the 1st
     return walkThroughMix(mix.set.id, 2);
   }).then(() => {
     return mixContents;
   });
+
+  return {emitter, complete};
 }
+
 module.exports = {
-  getTracksInMix,
-  fetchTrack,
-  playMix,
-  convertMixUrlToMixId,
+  generateRandomSetId,
+  logTrack,
   getLengthOfTrack,
-  generateSetId,
+  convertMixUrlToMixId,
+  playMix,
+  fetchTrack,
+  getTracksInMix,
 };
-
-// Use this script interactively:
-if (require.main === module) {
-  const argv = require('minimist')(process.argv.slice(2));
-  let mix = argv.mix || argv.m;
-  let delay = argv.delay || argv.d;
-
-  // Use the specified set id, or generate a random set id from 100k-400k
-  let set = argv.set || argv.s || generateSetId();
-
-  if (!mix) {
-    console.error(`Usage: ./8tracks-fetch-mix --mix "mix" [--set "set id"] [--output "filename"]`);
-    console.error(`--mix specifies the mix url (or raw mix id) to fetch from 8tracks`);
-    console.error(`--set specifies the set id use when feching. If not specified, a random set id is used`);
-    console.error(`--delay specifies whether to wait the length of each track after the track is
-        fetched as if it was "playing". For longer playlists, 8tracks can't handle fetching all
-        songs at once, so this is a way around that. Unfortunately, this means that fetching a
-        playlist with this flag takes as long as it takes for the playlist to play to its end :(`);
-    console.error(`Error: please specify a mix id to fetch with --mix (it's a required argument)`);
-    process.exit(1);
-  }
-
-  // convert mix url to mix id?
-  let promise;
-  if (isNaN(parseInt(mix))) {
-    promise = convertMixUrlToMixId(mix).then(data => {
-      // console.log('* Got mix id for mix url:', mixId);
-      console.log('%%TRACKINFO');
-      console.log(`is: playlist`);
-      console.log(`name: ${data.name}`);
-      console.log(`description: ${data.desc.toString('base64')}`);
-      console.log(`link: ${data.link}`);
-      console.log(`image: ${data.image}`);
-      console.log(`tags: ${data.tags.join(',')}`);
-      // console.log(`Tags: ${data.tags.join(', ')}`);
-
-      mix = data.id;
-    });
-  } else {
-    promise = Promise.resolve();
-  }
-
-  promise.then(() => getTracksInMix(mix, set, {delayLengthOfTrack: delay}))
-  .catch(err => {
-    if (err.statusCode) {
-      console.error(err.name, err.statusCode, err.response.body);
-    } else {
-      console.error(err);
-    }
-  });
-}
