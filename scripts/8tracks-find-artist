@@ -4,7 +4,12 @@ const Promise = require('bluebird'),
       request = require('request-promise'),
       flatten = require('flat'),
       fs = require('fs'),
-      lib = require('../lib');
+      chalk = require('chalk'),
+      {generateBlockLogger, verbose} = require('../lib/logging'),
+      generateRandomSetId = require('../lib/generateRandomSetId'),
+      getTracksInMix = require('../lib/getTracksInMix');
+
+chalk.enabled = true;
 
 function getMixesOfInterest(tags, page=1) {
   return request({
@@ -20,27 +25,32 @@ function getMixesOfInterest(tags, page=1) {
 if (require.main === module) {
   const argv = require('minimist')(process.argv.slice(2));
 
+  const log = generateBlockLogger();
+
   // Use the specified set id, or generate a random set id from 100k-400k
-  let set = lib.generateRandomSetId();
+  const set = generateRandomSetId();
 
   const artist = argv.artist ? new RegExp(argv.artist, 'i') : null;
   const album = argv.album ? new RegExp(argv.album, 'i') : null;
   const name = argv.name ? new RegExp(argv.name, 'i') : null;
 
   if ((!artist && !album) || argv.help) {
-    console.error(`Usage: ./8tracks-find-artist [--artist foo] [--album bar] [--delay]`);
-    console.error(`--artist specifies a given artist to search for. It's a case insensitive regex.`);
-    console.error(`--album specifies a given album to search for. It's a case insensitive regex.`);
-    console.error(`--delay specifies whether to wait the length of each track after the track is
+    verbose(`Usage: ./8tracks-find-artist [--artist foo] [--album bar] [--delay]\n`);
+    verbose(`--artist specifies a given artist to search for. It's a case insensitive regex.\n`);
+    verbose(`--album specifies a given album to search for. It's a case insensitive regex.\n`);
+    verbose(`--delay specifies whether to wait the length of each track after the track is
         fetched as if it was "playing". For longer playlists, 8tracks can't handle fetching all
         songs at once, so this is a way around that. Unfortunately, this means that fetching a
-        playlist with this flag takes as long as it takes for the playlist to play to its end :(`);
-    console.error(`--pages specifies how many pages of mixes to searhc through. By default, it's 10.`);
-    console.error(`Error: please specify a mix id to fetch with --mix (it's a required argument)`);
+        playlist with this flag takes as long as it takes for the playlist to play to its end :(\n`);
+    verbose(`--pages specifies how many pages of mixes to searhc through. By default, it's 10.\n`);
+    verbose(`--output (or -o) specifies where to put the output. If a filepath, put data in that file. If empty, write to stdout.\n\n`);
+    verbose(`Error: please specify a mix id to fetch with --mix (it's a required argument)\n`);
     process.exit(1);
   }
 
   const tags = [argv.artist, argv.album].filter(i => i);
+
+  verbose('* Searching for all mixes with tags', chalk.green(tags.join(', ')), '\n');
 
   // Get mixes across a range of pages.
   const mixPages = [];
@@ -50,18 +60,27 @@ if (require.main === module) {
 
   return Promise.all(mixPages).then(mixesOnEachPage => {
     const mixes = mixesOnEachPage.reduce((acc, i) => [...acc, ...i], []);
+    verbose(`* Received ${chalk.green(mixes.length)} mixes!\n`);
 
-    console.log('%TRACKINFO');
-    console.log(`name: Find Artist Playlist`);
+    // Log playlist info block
+    log({
+      name: 'Find Artist Playlist',
+      // TODO: any more here?
+    }, 'playlist');
+    verbose(`* Write playlist info block...\n`);
 
     const tracksThatMatch = [];
     const all = mixes.map(mixId => {
+      verbose(`* Fetching mix info for mix id ${chalk.green(mixId)}...\n`);
+
       // For each mix, get all tracks within.
-      const setId = lib.generateRandomSetId();
-      const {emitter, complete} = lib.getTracksInMix(mixId, setId, {delayLengthOfTrack: argv.delay || false});
+      const setId = generateRandomSetId();
+      const {emitter, complete} = getTracksInMix(mixId, setId, {delayLengthOfTrack: argv.delay || false});
 
       // For each track that is received...
       emitter.on('track', track => {
+        verbose(`* Found track in mix ${chalk.green(mixId)}: ${chalk.cyan(track.name)}`);
+
         if (
           // Make sure the track matches all the filters that were specified
           (!artist || track.artist_details.name.match(artist)) &&
@@ -69,10 +88,14 @@ if (require.main === module) {
           (!name || track.name.match(name)) &&
 
           // Only add new unique tracks
-          (tracksThatMatch.find(i => i.name.trim(' ') === track.name.trim(' ')) !== null)
+          // FIXME: not working!
+          (tracksThatMatch.find(i => i.name.trim(' ') === track.name.trim(' ')) === undefined)
         ) {
-          lib.logTrack(track);
+          process.stderr.write(chalk.red(' ... Added.'));
+          log(track, 'track');
         }
+
+        process.stderr.write('\n');
       });
 
       // FIXME: this is a bad idea maybe?

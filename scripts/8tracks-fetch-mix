@@ -2,60 +2,13 @@
 /* vim: set syntax=javascript ft=javascript : */
 const Promise = require('bluebird'),
       request = require('request-promise'),
-      flatten = require('flat'),
       fs = require('fs'),
-      lib = require('../lib');
+      chalk = require('chalk'),
+      {generateBlockLogger, verbose} = require('../lib/logging'),
+      generateRandomSetId = require('../lib/generateRandomSetId'),
+      getTracksInMix = require('../lib/getTracksInMix'),
+      {fetchTrack, getLengthOfTrack, playMix, convertMixUrlToMixId} = require('../lib/api');
 
-
-// Given a mix is and set id, traverse through a mix one track at a time and "crawl" a mix.
-// Returns an array of tracks that are returned from 8tracks
-function getTracksInMix(mixId, setId, {delayLengthOfTrack}) {
-  // A recursive function used to traverse through a mix
-  function walkThroughMix(lastTrackId) {
-    // Fetch the current song in the mix.
-    return lib.fetchTrack(mixId, setId, lastTrackId).then(track => {
-      // Log the song
-      let currentSong = track.set.track;
-      mixContents.push(currentSong);
-      lib.logTrack(currentSong);
-
-      if (track.set.at_last_track) {
-        // At end!
-        return true;
-      } else {
-        // fetch next track
-        if (delayLengthOfTrack) {
-          // Calculate the length of the track
-          return lib.getLengthOfTrack(currentSong).then(lengthInSeconds => {
-            // console.log('* Approximate Track length:', lengthInSeconds, 'seconds');
-            // console.log('* Waiting as if playing...');
-            return Promise.delay(lengthInSeconds * 1000);
-          }).then(() => {
-            return walkThroughMix(track.set.track.id);
-          });
-        } else {
-          // User doesn't want to delay!
-          return walkThroughMix(track.set.track.id);
-        }
-      }
-    });
-  }
-
-  let mixContents = [];
-
-  // Start by playing the mix. That responds with the first track in the mix.
-  return lib.playMix(mixId, setId).then(mix => {
-    // log the first song.
-    let currentSong = mix.set.track;
-    mixContents.push(currentSong);
-    lib.logTrack(currentSong);
-
-    // Start at the 2nd song, since we just fetched the 1st
-    return walkThroughMix(mix.set.id, 2);
-  }).then(() => {
-    return mixContents;
-  });
-}
 
 // Use this script interactively:
 if (require.main === module) {
@@ -63,34 +16,37 @@ if (require.main === module) {
   let mix = argv.mix || argv.m;
   let delay = argv.delay || argv.d;
 
+  const logBlock = generateBlockLogger();
+
   // Use the specified set id, or generate a random set id from 100k-400k
-  let set = argv.set || argv.s || lib.generateRandomSetId();
+  let set = argv.set || argv.s || generateRandomSetId();
 
   if (!mix) {
-    console.error(`Usage: ./8tracks-fetch-mix --mix "mix" [--set "set id"] [--output "filename"]`);
-    console.error(`--mix specifies the mix url (or raw mix id) to fetch from 8tracks`);
-    console.error(`--set specifies the set id use when feching. If not specified, a random set id is used`);
-    console.error(`--delay specifies whether to wait the length of each track after the track is
+    verbose(`Usage: ./8tracks-fetch-mix --mix "mix" [--set "set id"] [--output "filename"]\n`);
+    verbose(`--mix specifies the mix url (or raw mix id) to fetch from 8tracks\n`);
+    verbose(`--set specifies the set id use when feching. If not specified, a random set id is used\n`);
+    verbose(`--delay specifies whether to wait the length of each track after the track is
         fetched as if it was "playing". For longer playlists, 8tracks can't handle fetching all
         songs at once, so this is a way around that. Unfortunately, this means that fetching a
-        playlist with this flag takes as long as it takes for the playlist to play to its end :(`);
-    console.error(`Error: please specify a mix id to fetch with --mix (it's a required argument)`);
+        playlist with this flag takes as long as it takes for the playlist to play to its end :(\n`);
+    verbose(`--output (or -o) specifies where to put the output. If a filepath, put data in that file. If empty, write to stdout.\n\n`);
+    verbose(`Error: please specify a mix id to fetch with --mix (it's a required argument)\n`);
     process.exit(1);
   }
 
   // convert mix url to mix id?
   let promise;
   if (isNaN(parseInt(mix))) {
-    promise = lib.convertMixUrlToMixId(mix).then(data => {
-      // console.log('* Got mix id for mix url:', mixId);
-      console.log('%%TRACKINFO');
-      console.log(`is: playlist`);
-      console.log(`name: ${data.name}`);
-      console.log(`description: ${data.desc.toString('base64')}`);
-      console.log(`link: ${data.link}`);
-      console.log(`image: ${data.image}`);
-      console.log(`tags: ${data.tags.join(',')}`);
-      // console.log(`Tags: ${data.tags.join(', ')}`);
+    promise = convertMixUrlToMixId(mix).then(data => {
+      // Log playlist info block
+      logBlock({
+        name: data.name,
+        description: data.desc.toString('base64'),
+        link: data.link,
+        image: data.image,
+        tags: data.tags.join(','),
+      }, 'playlist');
+      verbose(`* Write playlist info block...\n`);
 
       mix = data.id;
     });
@@ -99,9 +55,13 @@ if (require.main === module) {
   }
 
   promise.then(() => {
-    return lib.getTracksInMix(mix, set, {delayLengthOfTrack: delay})
+    verbose(`* Get all tracks in mix ${chalk.green(mix)}... \n`);
+    return getTracksInMix(mix, set, {delayLengthOfTrack: delay})
   }).then(({emitter, complete}) => {
-    emitter.on('track', lib.logTrack);
+    emitter.on('track', t => {
+      verbose(`* Found track ${chalk.cyan(t.name)} in mix ${chalk.green(mix)}...\n`);
+      return logBlock(t, 'track');
+    });
     return complete;
   }).catch(err => {
     if (err.statusCode) {
