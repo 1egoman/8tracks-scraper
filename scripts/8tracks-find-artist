@@ -6,10 +6,8 @@ const Promise = require('bluebird'),
       fs = require('fs'),
       chalk = require('chalk'),
       {generateBlockLogger, verbose} = require('../lib/logging'),
-      generateRandomSetId = require('../lib/generateRandomSetId'),
-      getTracksInMix = require('../lib/getTracksInMix');
-
-chalk.enabled = true;
+      generateRandomSetId = require('../lib/generateRandomSetId').default,
+      getTracksInMix = require('../lib/getTracksInMix').default;
 
 function getMixesOfInterest(tags, page=1) {
   return request({

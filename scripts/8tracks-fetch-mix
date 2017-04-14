@@ -5,18 +5,18 @@ const Promise = require('bluebird'),
       fs = require('fs'),
       chalk = require('chalk'),
       {generateBlockLogger, verbose} = require('../lib/logging'),
-      generateRandomSetId = require('../lib/generateRandomSetId'),
-      getTracksInMix = require('../lib/getTracksInMix'),
+      generateRandomSetId = require('../lib/generateRandomSetId').default,
+      getTracksInMix = require('../lib/getTracksInMix').default,
       {fetchTrack, getLengthOfTrack, playMix, convertMixUrlToMixId} = require('../lib/api');
 
 
 // Use this script interactively:
 if (require.main === module) {
   const argv = require('minimist')(process.argv.slice(2));
+  const logBlock = generateBlockLogger();
+
   let mix = argv.mix || argv.m;
   let delay = argv.delay || argv.d;
-
-  const logBlock = generateBlockLogger();
 
   // Use the specified set id, or generate a random set id from 100k-400k
   let set = argv.set || argv.s || generateRandomSetId();

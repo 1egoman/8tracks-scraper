@@ -2,7 +2,7 @@
 /* vim: set syntax=javascript ft=javascript : */
 const Promise = require('bluebird'),
       request = require('request-promise'),
-      eightTracksFetchMix = require('./8tracks-fetch-mix');
+      {convertMixUrlToMixId} = require('../lib/api');
 
 // Given a mix id, get the title for the mix.
 function getTitleForMix(data) {
@@ -16,7 +16,7 @@ function getTitleForMix(data) {
     url = `http://${url}`;
   }
 
-  return eightTracksFetchMix.convertMixUrlToMixId(url).then(body => {
+  return convertMixUrlToMixId(url).then(body => {
     for (let key in body) {
       console.log(`${key}: ${body[key]}`);
     }
