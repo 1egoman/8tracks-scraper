@@ -1,0 +1,61 @@
+#!/usr/bin/env node
+/* vim: set syntax=javascript ft=javascript : */
+const fs = require('fs'),
+      path = require('path'),
+      request = require('request-promise'),
+      chalk = require('chalk'),
+      mkdirp = require('mkdirp-promise'),
+      {generateBlockLogger, verbose} = require('../lib/logging'),
+      parseBlocks = require('../lib/blockParser').default,
+      convertToXSPF = require('../lib/exporters/xspf').default,
+      Promise = require('bluebird');
+
+const argv = require('minimist')(process.argv.slice(2));
+const parseHeaders = require('parse-headers');
+const unflatten = require('flat').unflatten;
+
+let total = '', allBlocks = [];
+
+if (!argv.path) {
+  throw new Error('No --path specified!');
+}
+
+let metadata;
+
+verbose(`* Making directory ${argv.path}...\n`);
+mkdirp(argv.path).then(() => {
+  verbose(`* Created directory!\n`);
+
+  process.stdin.on('data', chunk => {
+    total += chunk;
+
+    const {blocks, rest} = parseBlocks(total);
+    total = rest;
+
+    allBlocks = [
+      ...allBlocks,
+      ...blocks.map(block => {
+        if (block.is === 'track') {
+          const trackName = `${block.name}: ${block.artist}.mp4a`;
+
+          // Save media to disk
+          verbose(`* Downloading ${chalk.green(trackName)}...\n`);
+          const mediaPath = path.join(argv.path, trackName);
+          const mediaStream = fs.createWriteStream(mediaPath);
+          request(block.source).pipe(mediaStream);
+
+          // Update the block, so when the playlist is made, we point to the local files.
+          block.source = `../${mediaPath}`;
+        }
+
+        return block;
+      }),
+    ];
+  });
+
+  process.stdin.on('end', () => {
+    const xspf = convertToXSPF(allBlocks);
+    fs.createWriteStream(path.join(argv.path, 'playlist.xspf')).write(xspf);
+    verbose(`* Saved playlist to playlist.xspf ...\n`);
+  });
+});
