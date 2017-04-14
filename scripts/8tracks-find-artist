@@ -7,7 +7,8 @@ const Promise = require('bluebird'),
       chalk = require('chalk'),
       {generateBlockLogger, verbose} = require('../lib/logging'),
       generateRandomSetId = require('../lib/generateRandomSetId').default,
-      getTracksInMix = require('../lib/getTracksInMix').default;
+      getTracksInMix = require('../lib/getTracksInMix').default,
+      addToDB = require('../lib/database').default;
 
 function getMixesOfInterest(tags, page=1) {
   return request({
@@ -41,12 +42,13 @@ if (require.main === module) {
         songs at once, so this is a way around that. Unfortunately, this means that fetching a
         playlist with this flag takes as long as it takes for the playlist to play to its end :(\n`);
     verbose(`--pages specifies how many pages of mixes to searhc through. By default, it's 10.\n`);
+    verbose(`--tag specifies tags that should be added to the search. Specify multiple with multiple --tag clauses.`);
     verbose(`--output (or -o) specifies where to put the output. If a filepath, put data in that file. If empty, write to stdout.\n\n`);
     verbose(`Error: please specify a mix id to fetch with --mix (it's a required argument)\n`);
     process.exit(1);
   }
 
-  const tags = [argv.artist, argv.album].filter(i => i);
+  const tags = [argv.artist, argv.album, argv.tags].filter(i => i).map(i => i.replace(/ /, '_'));
 
   verbose('* Searching for all mixes with tags', chalk.green(tags.join(', ')), '\n');
 
@@ -78,6 +80,7 @@ if (require.main === module) {
       // For each track that is received...
       emitter.on('track', track => {
         verbose(`* Found track in mix ${chalk.green(mixId)}: ${chalk.cyan(track.name)}`);
+        addToDB(track);
 
         if (
           // Make sure the track matches all the filters that were specified
