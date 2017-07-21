@@ -36,7 +36,7 @@ mkdirp(argv.path).then(() => {
       ...allBlocks,
       ...blocks.map(block => {
         if (block.is === 'track') {
-          const trackName = `${block.name}: ${block.artist}.mp4a`;
+          const trackName = `${block.name}: ${block.artist}.mp4`;
 
           // Save media to disk
           verbose(`* Downloading ${chalk.green(trackName)}...\n`);
@@ -45,7 +45,7 @@ mkdirp(argv.path).then(() => {
           request(block.source).pipe(mediaStream);
 
           // Update the block, so when the playlist is made, we point to the local files.
-          block.source = `../${mediaPath}`;
+          block.source = `${path.basename(mediaPath)}`;
         }
 
         return block;
